@@ -1,0 +1,54 @@
+name: Setup VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain_frontend:
+        description: "Frontend domain (e.g. deadun.site)"
+        default: "deadun.site"
+        required: true
+      domain_api:
+        description: "API domain (e.g. api.deadun.site)"
+        default: "api.deadun.site"
+        required: true
+
+concurrency:
+  group: vps-staging
+  cancel-in-progress: true
+
+jobs:
+  setup:
+    name: Run setup.sh on VPS
+    runs-on: ubuntu-24.04
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Copy scripts to VPS
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "scripts/"
+          target: "/opt/sumni-finance"
+          rm: true
+ 
+      - name: Run  scripts
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          DOMAIN_FRONTEND: ${{ inputs.domain_frontend }}
+          DOMAIN_API: ${{ inputs.domain_api }}
+          EMAIL: ${{ secrets.CERTBOT_EMAIL }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: DOMAIN_FRONTEND,DOMAIN_API,EMAIL
+          script: |
+            set -euo pipefail
+            cd /opt/sumni-finance/scripts
+            chmod +x setup.sh install-docker.sh
+            sudo -E bash setup.sh
+            sudo -E bash install-docker.sh
