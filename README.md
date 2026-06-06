@@ -60,21 +60,3 @@ Go to **Explore → Loki datasource**.
 
 > **Note:** `correlation_id` is parsed at query time from JSON log lines.  
 > Your backend must emit logs as JSON with a `correlation_id` field for this to work.
-
----
-
-## Common commands
-
-```bash
-# Check service status
-docker compose ps
-
-# Stream backend logs (without Grafana)
-docker compose logs -f backend
-
-# Restart a single service
-docker compose restart backend
-
-# Stop everything
-docker compose down
-```
