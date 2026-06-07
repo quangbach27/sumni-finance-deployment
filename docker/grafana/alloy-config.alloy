@@ -24,6 +24,13 @@ discovery.relabel "docker_labels" {
     regex         = ""            // no "app" label = drop (catches alloy)
     action        = "drop"
   }
+
+  // deduplicate: drop IPv6 targets, keep only the IPv4 (0.0.0.0) entry
+  rule {
+    source_labels = ["__meta_docker_port_public_ip"]
+    regex         = "::"
+    action        = "drop"
+  }
 }
 
 loki.source.docker "docker_logs" {
