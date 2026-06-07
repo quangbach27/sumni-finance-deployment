@@ -45,10 +45,10 @@ loki.process "enrich" {
 
 loki.write "grafana_cloud" {
   endpoint {
-    url = env("LOKI_URL")
+    url = sys.env("LOKI_URL")
     basic_auth {
-      username = env("LOKI_USERNAME")
-      password = env("LOKI_PASSWORD")
+      username = sys.env("LOKI_USERNAME")
+      password = sys.env("LOKI_PASSWORD")
     }
   }
 }
