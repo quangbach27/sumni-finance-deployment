@@ -53,24 +53,26 @@ services:
           cpus: "0.1"
           memory: 128M
 
-  # frontend:
-  #   image: ghcr.io/quangbach27/sumni-finance-frontend-vite:${FRONTEND_IMAGE_TAG:-latest}
-  #   container_name: sumni-finance-frontend
-  #   restart: unless-stopped
-  #   ports:
-  #     - "127.0.0.1:3000:80"
-  #   networks:
-  #     - sumni
-  #   labels:
-  #     app: "finance-frontend"
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         cpus: "0.3"
-  #         memory: 128M
-  #       reservations:
-  #         cpus: "0.05"
-  #         memory: 64M
+  frontend:
+    image: ghcr.io/quangbach27/sumni-finance-frontend-vite:${FRONTEND_IMAGE_TAG:-latest}
+    container_name: sumni-finance-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_BACKEND=${VITE_API_BACKEND:-https://api.deadun.site}
+    networks:
+      - sumni
+    labels:
+      app: "finance-frontend"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.3"
+          memory: 128M
+        reservations:
+          cpus: "0.05"
+          memory: 64M
   
   alloy:
     image: grafana/alloy:latest
@@ -84,6 +86,10 @@ services:
       - ./grafana/alloy-config.alloy:/etc/alloy/config.alloy
     command: run /etc/alloy/config.alloy
     restart: unless-stopped
+    ports:
+    - "12345:12345"
+    networks:
+    - sumni 
     deploy:
       resources:
         limits:
@@ -92,6 +98,7 @@ services:
         reservations:
           cpus: "0.05"
           memory: 64M
+
 
 networks:
   sumni:

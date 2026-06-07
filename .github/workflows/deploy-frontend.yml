@@ -1,0 +1,43 @@
+name: Deploy Frontend
+
+on:
+  repository_dispatch:
+    types: [deploy-frontend]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Frontend image tag to deploy"
+        default: "latest"
+        required: true
+
+concurrency:
+  group: vps-staging
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy frontend service to VPS
+    runs-on: ubuntu-24.04
+    environment: staging
+    env:
+      DOCKER_PATH: "/opt/sumni-finance/docker"
+      FRONTEND_IMAGE_TAG: ${{ github.event.client_payload.image_tag || inputs.image_tag || 'latest' }}
+    permissions:
+      packages: read
+    steps:
+      - name: Deploy frontend
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          FRONTEND_IMAGE_TAG: ${{ env.FRONTEND_IMAGE_TAG }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: FRONTEND_IMAGE_TAG,GHCR_USER,GHCR_TOKEN
+          script: |
+            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
+            cd ${{ env.DOCKER_PATH }}
+            docker compose pull frontend
+            docker compose up -d --no-deps frontend
