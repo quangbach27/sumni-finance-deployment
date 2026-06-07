@@ -1,0 +1,54 @@
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "docker_labels" {
+  targets = discovery.docker.containers.targets
+
+  // map the Docker label "app" → Loki label "app"
+  rule {
+    source_labels = ["__meta_docker_container_label_app"]
+    target_label  = "app"
+  }
+
+  // also keep container_name as a label
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  // drop alloy itself
+  rule {
+    source_labels = ["__meta_docker_container_label_app"]
+    regex         = ""            // no "app" label = drop (catches alloy)
+    action        = "drop"
+  }
+}
+
+loki.source.docker "docker_logs" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.docker_labels.output
+  forward_to = [loki.process.enrich.receiver]
+}
+
+loki.process "enrich" {
+  forward_to = [loki.write.grafana_cloud.receiver]
+
+  stage.static_labels {
+    values = {
+      env  = "production",
+      host = "my-vps",
+    }
+  }
+}
+
+loki.write "grafana_cloud" {
+  endpoint {
+    url = env("LOKI_URL")
+    basic_auth {
+      username = env("LOKI_USERNAME")
+      password = env("LOKI_PASSWORD")
+    }
+  }
+}

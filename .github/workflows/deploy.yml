@@ -12,55 +12,40 @@ jobs:
     name: Deploy services to VPS
     runs-on: ubuntu-24.04
     environment: staging
+    env:
+      DOCKER_PATH: "/opt/sumni-finance/docker"
     permissions:
       packages: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Copy deployment files to VPS
+      - name: Copy file to VPS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "."
-          target: "/opt/sumni-finance"
+          source: "docker/docker-compose.yml,docker/grafana/"
+          target: ${{ env.DOCKER_PATH }}
+          strip_components: 1
           rm: false
 
-      - name: Build POSTGRES_URL
-        id: db_url
-        env:
-          DB_USER: ${{ vars.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ vars.DB_NAME }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          DB_HOST: ${{ vars.DB_HOST }}
-        run: |
-          ENCODED_PW=$(python3 -c "import urllib.parse, os; print(urllib.parse.quote(os.environ['DB_PASSWORD'], safe=''))")
-          echo "::add-mask::${ENCODED_PW}"
-          URL="postgres://${DB_USER}:${ENCODED_PW}@${DB_HOST}:${DB_PORT}/${DB_NAME}?sslmode=disable"
-          echo "::add-mask::${URL}"
-          echo "url=${URL}" >> "$GITHUB_OUTPUT"
-
-      - name: Start services
+      - name: Start DB and Alloy
         uses: appleboy/ssh-action@v1.2.0
         env:
           DB_USER: ${{ vars.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_NAME: ${{ vars.DB_NAME }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          POSTGRES_URL: ${{ steps.db_url.outputs.url }}
-          CORS_ALLOWED_ORIGINS: https://${{ vars.DOMAIN_FRONTEND }}
-          GHCR_USER: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          LOKI_USERNAME: ${{ secrets.LOKI_USERNAME }}
+          LOKI_PASSWORD: ${{ secrets.LOKI_PASSWORD }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: DB_USER,DB_PASSWORD,DB_NAME,DB_PORT,POSTGRES_URL,CORS_ALLOWED_ORIGINS,GHCR_USER,GHCR_TOKEN
+          envs: DB_USER,DB_PASSWORD,DB_NAME,LOKI_URL,LOKI_USERNAME,LOKI_PASSWORD
           script: |
-            echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
-            cd /opt/sumni-finance
-            docker compose pull
-            docker compose up -d
+            cd ${{ env.DOCKER_PATH }}
+            docker compose rm -sf db alloy
+            docker compose up -d db alloy

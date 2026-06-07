@@ -15,9 +15,10 @@ on:
 concurrency:
   group: vps-staging
   cancel-in-progress: true
-
 jobs:
   setup:
+    env:
+      SETUP_PATH: "/opt/sumni-finance/setup"
     name: Run setup.sh on VPS
     runs-on: ubuntu-24.04
     environment: staging
@@ -32,7 +33,7 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           source: "scripts/"
-          target: "/opt/sumni-finance"
+          target: ${{ env.SETUP_PATH }}
           rm: true
  
       - name: Run  scripts
@@ -45,10 +46,11 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
           envs: DOMAIN_FRONTEND,DOMAIN_API,EMAIL
           script: |
             set -euo pipefail
-            cd /opt/sumni-finance/scripts
+            cd ${{ env.SETUP_PATH }}/scripts
             chmod +x setup.sh install-docker.sh
             sudo -E bash setup.sh
             sudo -E bash install-docker.sh
