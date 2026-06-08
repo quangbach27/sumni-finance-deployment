@@ -9,18 +9,27 @@ on:
         description: "Frontend image tag to deploy"
         default: "latest"
         required: true
+      env:
+        description: "Target environment"
+        type: choice
+        options:
+          - staging
+          - production
+        default: "staging"
+        required: true
 
 concurrency:
-  group: vps-staging
+  group: vps-${{ github.event.client_payload.env || inputs.env || 'staging' }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Deploy frontend service to VPS
+    name: Deploy frontend to ${{ github.event.client_payload.env || inputs.env || 'staging' }}
     runs-on: ubuntu-24.04
-    environment: staging
+    environment: ${{ github.event.client_payload.env || inputs.env || 'staging' }}
     env:
       DOCKER_PATH: "/opt/sumni-finance/docker"
+      TARGET_ENV: ${{ github.event.client_payload.env || inputs.env || 'staging' }}
       FRONTEND_IMAGE_TAG: ${{ github.event.client_payload.image_tag || inputs.image_tag || 'latest' }}
     permissions:
       packages: read

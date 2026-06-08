@@ -9,18 +9,27 @@ on:
         description: "Backend image tag to deploy"
         default: "latest"
         required: true
+      env:
+        description: "Target environment"
+        type: choice
+        options:
+          - staging
+          - production
+        default: "staging"
+        required: true
 
 concurrency:
-  group: vps-staging
+  group: vps-${{ github.event.client_payload.env || inputs.env || 'staging' }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Deploy backend service to VPS
+    name: Deploy backend to ${{ github.event.client_payload.env || inputs.env || 'staging' }}
     runs-on: ubuntu-24.04
-    environment: staging
+    environment: ${{ github.event.client_payload.env || inputs.env || 'staging' }}
     env:
       DOCKER_PATH: "/opt/sumni-finance/docker"
+      TARGET_ENV: ${{ github.event.client_payload.env || inputs.env || 'staging' }}
       BACKEND_IMAGE_TAG: ${{ github.event.client_payload.image_tag || inputs.image_tag || 'latest' }}
     permissions:
       packages: read
@@ -48,11 +57,12 @@ jobs:
           BACKEND_IMAGE_TAG: ${{ env.BACKEND_IMAGE_TAG }}
           GHCR_USER: ${{ github.actor }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENV: ${{ env.TARGET_ENV }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: POSTGRES_URL,CORS_ALLOWED_ORIGINS,BACKEND_IMAGE_TAG,GHCR_USER,GHCR_TOKEN
+          envs: POSTGRES_URL,CORS_ALLOWED_ORIGINS,BACKEND_IMAGE_TAG,GHCR_USER,GHCR_TOKEN,ENV
           script: |
             echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GHCR_USER}" --password-stdin
             cd ${{ env.DOCKER_PATH }}

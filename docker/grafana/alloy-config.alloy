@@ -44,7 +44,7 @@ loki.process "enrich" {
 
   stage.static_labels {
     values = {
-      env  = "production",
+      env  = system.env("ENV"),
       host = "my-vps",
     }
   }
